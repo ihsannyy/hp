@@ -185,32 +185,52 @@ def cmd_vib(args):
     else:
         print(f"{CLR_RED}✖ termux-vibrate tidak tersedia.{CLR_RESET}")
 
+def get_lan_ip():
+    """Dapatkan IP lokal perangkat secara instan tanpa block"""
+    try:
+        import socket
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception:
+        return "127.0.0.1"
+
 def cmd_wifi(args):
     """Informasi status Wi-Fi & IP Lokal"""
-    raw = run_termux(["termux-wifi-connectioninfo"])
-    if not raw:
-        print(f"{CLR_RED}✖ Wi-Fi tidak aktif atau izin lokasi belum diberikan.{CLR_RESET}")
-        return
+    raw = run_termux(["termux-wifi-connectioninfo"], timeout=2)
+    data = {}
+    if raw:
+        try:
+            data = json.loads(raw)
+        except Exception:
+            data = {}
 
-    try:
-        data = json.loads(raw)
-    except Exception:
-        print(f"{CLR_RED}✖ Gagal membaca info Wi-Fi.{CLR_RESET}")
-        return
-
-    ip = data.get("ip", "Tidak ada IP")
-    ssid = data.get("ssid", "<Unknown>")
+    ip = data.get("ip") or get_lan_ip()
+    ssid = data.get("ssid", "")
     speed = data.get("link_speed_mbps", 0)
     rssi = data.get("rssi", 0)
     freq = data.get("frequency_mhz", 0)
 
+    need_loc_hint = False
+    if not ssid or ssid in ("<unknown ssid>", "0x", "null", "<Unknown>"):
+        ssid_display = f"{CLR_YELLOW}Terkoneksi (Nama disembunyikan Android){CLR_RESET}"
+        need_loc_hint = True
+    else:
+        ssid_display = f"{CLR_GREEN}  {ssid}{CLR_RESET}"
+
     print()
-    print(f" {CLR_RED}● {CLR_YELLOW}● {CLR_GREEN}●   {CLR_BOLD}{CLR_CYAN}Status Wi-Fi Android{CLR_RESET}")
+    print(f" {CLR_RED}● {CLR_YELLOW}● {CLR_GREEN}●   {CLR_BOLD}{CLR_CYAN}Status Wi-Fi & Jaringan{CLR_RESET}")
     print(f" {CLR_DIM}──────────────────────────────────────────{CLR_RESET}")
-    print(f"  {CLR_GRAY}SSID / Jaringan {CLR_RESET}: {CLR_GREEN}  {ssid}{CLR_RESET}")
+    print(f"  {CLR_GRAY}SSID / Jaringan {CLR_RESET}: {ssid_display}")
     print(f"  {CLR_GRAY}IP Lokal (LAN)  {CLR_RESET}: {CLR_BLUE}󰩠  {ip}{CLR_RESET}")
-    print(f"  {CLR_GRAY}Kecepatan Link  {CLR_RESET}: {CLR_YELLOW}󰛳  {speed} Mbps{CLR_RESET}")
-    print(f"  {CLR_GRAY}Kekuatan Sinyal {CLR_RESET}: {CLR_PURPLE}󰢾  {rssi} dBm ({freq} MHz){CLR_RESET}")
+    if speed > 0:
+        print(f"  {CLR_GRAY}Kecepatan Link  {CLR_RESET}: {CLR_YELLOW}󰛳  {speed} Mbps{CLR_RESET}")
+    if rssi != 0:
+        print(f"  {CLR_GRAY}Kekuatan Sinyal {CLR_RESET}: {CLR_PURPLE}󰢾  {rssi} dBm ({freq} MHz){CLR_RESET}")
+    if need_loc_hint:
+        print(f"  {CLR_DIM}💡 Tips: Di Android 10+, beri izin Lokasi pada Termux:API agar nama SSID terbaca.{CLR_RESET}")
     print(f" {CLR_DIM}──────────────────────────────────────────{CLR_RESET}")
     print()
 
