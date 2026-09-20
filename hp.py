@@ -185,20 +185,45 @@ def cmd_vib(args):
     else:
         print(f"{CLR_RED}✖ termux-vibrate tidak tersedia.{CLR_RESET}")
 
-def get_lan_ip():
-    """Dapatkan IP lokal perangkat secara instan tanpa block"""
+def get_network_info():
+    """Dapatkan info jaringan, IP LAN, Gateway, dan ISP secara reliable"""
+    import socket
+    net = {
+        "lan_ip": "127.0.0.1",
+        "gateway": "",
+        "isp": "",
+        "city": "",
+        "status": "Online"
+    }
     try:
-        import socket
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.connect(("8.8.8.8", 80))
-        ip = s.getsockname()[0]
+        net["lan_ip"] = s.getsockname()[0]
         s.close()
-        return ip
     except Exception:
-        return "127.0.0.1"
+        net["status"] = "Offline"
+        return net
+
+    # Cek ISP / Publik ringan via thread
+    def _fetch_isp():
+        try:
+            req = urllib.request.Request("http://ip-api.com/json", headers={"User-Agent": "hp-cli"})
+            with urllib.request.urlopen(req, timeout=1.5) as resp:
+                data = json.loads(resp.read().decode())
+                if data.get("status") == "success":
+                    net["isp"] = data.get("isp", "")
+                    net["city"] = data.get("city", "")
+        except Exception:
+            pass
+
+    t = threading.Thread(target=_fetch_isp)
+    t.start()
+    t.join(timeout=1.6)
+
+    return net
 
 def cmd_wifi(args):
-    """Informasi status Wi-Fi & IP Lokal"""
+    """Informasi status Wi-Fi & Jaringan Lengkap"""
     raw = run_termux(["termux-wifi-connectioninfo"], timeout=2)
     data = {}
     if raw:
@@ -207,30 +232,35 @@ def cmd_wifi(args):
         except Exception:
             data = {}
 
-    ip = data.get("ip") or get_lan_ip()
+    net = get_network_info()
+    ip = data.get("ip") or net["lan_ip"]
     ssid = data.get("ssid", "")
     speed = data.get("link_speed_mbps", 0)
     rssi = data.get("rssi", 0)
     freq = data.get("frequency_mhz", 0)
 
-    need_loc_hint = False
-    if not ssid or ssid in ("<unknown ssid>", "0x", "null", "<Unknown>"):
-        ssid_display = f"{CLR_YELLOW}Terkoneksi (Nama disembunyikan Android){CLR_RESET}"
-        need_loc_hint = True
-    else:
+    # Format SSID display
+    if ssid and ssid not in ("<unknown ssid>", "0x", "null", "<Unknown>"):
         ssid_display = f"{CLR_GREEN}  {ssid}{CLR_RESET}"
+    else:
+        # Jika Android 10+ menyembunyikan SSID, tampilkan status koneksi cerdas
+        if net["isp"]:
+            ssid_display = f"{CLR_GREEN}  Wi-Fi Aktif{CLR_RESET} {CLR_GRAY}({net['isp']}){CLR_RESET}"
+        else:
+            ssid_display = f"{CLR_GREEN}  Wi-Fi Terkoneksi{CLR_RESET}"
 
     print()
-    print(f" {CLR_RED}● {CLR_YELLOW}● {CLR_GREEN}●   {CLR_BOLD}{CLR_CYAN}Status Wi-Fi & Jaringan{CLR_RESET}")
+    print(f" {CLR_RED}● {CLR_YELLOW}● {CLR_GREEN}●   {CLR_BOLD}{CLR_CYAN}Status Jaringan & Wi-Fi{CLR_RESET}")
     print(f" {CLR_DIM}──────────────────────────────────────────{CLR_RESET}")
-    print(f"  {CLR_GRAY}SSID / Jaringan {CLR_RESET}: {ssid_display}")
+    print(f"  {CLR_GRAY}Status Jaringan {CLR_RESET}: {ssid_display}")
     print(f"  {CLR_GRAY}IP Lokal (LAN)  {CLR_RESET}: {CLR_BLUE}󰩠  {ip}{CLR_RESET}")
+    if net["isp"]:
+        loc_str = f" ({net['city']})" if net["city"] else ""
+        print(f"  {CLR_GRAY}Provider / ISP  {CLR_RESET}: {CLR_PURPLE}  {net['isp']}{loc_str}{CLR_RESET}")
     if speed > 0:
         print(f"  {CLR_GRAY}Kecepatan Link  {CLR_RESET}: {CLR_YELLOW}󰛳  {speed} Mbps{CLR_RESET}")
     if rssi != 0:
         print(f"  {CLR_GRAY}Kekuatan Sinyal {CLR_RESET}: {CLR_PURPLE}󰢾  {rssi} dBm ({freq} MHz){CLR_RESET}")
-    if need_loc_hint:
-        print(f"  {CLR_DIM}💡 Tips: Di Android 10+, beri izin Lokasi pada Termux:API agar nama SSID terbaca.{CLR_RESET}")
     print(f" {CLR_DIM}──────────────────────────────────────────{CLR_RESET}")
     print()
 
