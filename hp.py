@@ -1,11 +1,5 @@
 #!/data/data/com.termux/files/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-==============================================================================
- hp - Android Quick Tools CLI for Termux
- Control your Android device hardware & system directly from the terminal.
-==============================================================================
-"""
 
 import sys
 import os
@@ -17,7 +11,6 @@ import subprocess
 import threading
 from datetime import datetime, timedelta
 
-# ANSI Colors - macOS Glass / Modern Palette
 CLR_RESET   = "\033[0m"
 CLR_BOLD    = "\033[1m"
 CLR_DIM     = "\033[2m"
@@ -42,7 +35,7 @@ def run_termux(cmd_list, timeout=5):
     try:
         res = subprocess.run(cmd_list, capture_output=True, text=True, timeout=timeout)
         return res.stdout.strip()
-    except Exception as e:
+    except Exception:
         return None
 
 def toast(msg):
@@ -51,12 +44,7 @@ def toast(msg):
     else:
         print(f"[{msg}]")
 
-# ==============================================================================
-# SUBCOMMANDS
-# ==============================================================================
-
 def cmd_battery(args):
-    """Cek status baterai lengkap & modern"""
     raw = run_termux(["termux-battery-status"])
     if not raw:
         print(f"{CLR_RED}✖ Gagal mengambil info baterai via Termux:API.{CLR_RESET}")
@@ -73,8 +61,7 @@ def cmd_battery(args):
     health = data.get("health", "GOOD")
     plugged = data.get("plugged", "UNPLUGGED")
     temp = data.get("temperature", 0.0)
-    
-    # Icons & status color
+
     if status == "CHARGING":
         icon = "󰂄"
         st_color = CLR_YELLOW
@@ -103,12 +90,11 @@ def cmd_battery(args):
     print()
 
 def cmd_guard(args):
-    """Monitor baterai: Bunyikan notifikasi/suara saat penuh (80%) atau kritis (<20%)"""
     target = args.target or 85
     sound = args.sound
     print(f"{CLR_CYAN}🛡  Baterai Guard Aktif! Menjaga di target {target}%...{CLR_RESET}")
     print(f"{CLR_DIM}Tekan Ctrl+C untuk menghentikan monitoring.{CLR_RESET}\n")
-    
+
     try:
         while True:
             raw = run_termux(["termux-battery-status"])
@@ -117,7 +103,7 @@ def cmd_guard(args):
                     data = json.loads(raw)
                     pct = data.get("percentage", 0)
                     status = data.get("status", "")
-                    
+
                     now = datetime.now().strftime("%H:%M:%S")
                     print(f"\r[{now}] Level: {pct}% | Status: {status}  ", end="", flush=True)
 
@@ -137,7 +123,6 @@ def cmd_guard(args):
         print(f"\n{CLR_GRAY}Monitoring dihentikan.{CLR_RESET}")
 
 def cmd_torch(args):
-    """Kontrol Senter (on, off, toggle)"""
     state = "off"
     if os.path.exists(TORCH_STATE):
         try:
@@ -162,7 +147,6 @@ def cmd_torch(args):
         print(f" {CLR_GRAY}🔦 Senter: OFF{CLR_RESET}")
 
 def cmd_say(args):
-    """Text to Speech (TTS) menggunakan suara Google/Android"""
     text = " ".join(args.text)
     if not text.strip():
         print(f"{CLR_YELLOW}Gunakan: hp say <kalimat>{CLR_RESET}")
@@ -177,7 +161,6 @@ def cmd_say(args):
     run_termux(cmd, timeout=30)
 
 def cmd_vib(args):
-    """Getarkan HP dengan durasi atau ritme pola"""
     ms = args.duration or 300
     if check_cmd("termux-vibrate"):
         run_termux(["termux-vibrate", "-d", str(ms)])
@@ -186,7 +169,6 @@ def cmd_vib(args):
         print(f"{CLR_RED}✖ termux-vibrate tidak tersedia.{CLR_RESET}")
 
 def get_network_info():
-    """Dapatkan info jaringan, IP LAN, Gateway, dan ISP secara reliable"""
     import socket
     net = {
         "lan_ip": "127.0.0.1",
@@ -204,7 +186,6 @@ def get_network_info():
         net["status"] = "Offline"
         return net
 
-    # Cek ISP / Publik ringan via thread
     def _fetch_isp():
         try:
             req = urllib.request.Request("http://ip-api.com/json", headers={"User-Agent": "hp-cli"})
@@ -223,7 +204,6 @@ def get_network_info():
     return net
 
 def cmd_wifi(args):
-    """Informasi status Wi-Fi & Jaringan Lengkap"""
     raw = run_termux(["termux-wifi-connectioninfo"], timeout=2)
     data = {}
     if raw:
@@ -239,13 +219,11 @@ def cmd_wifi(args):
     rssi = data.get("rssi", 0)
     freq = data.get("frequency_mhz", 0)
 
-    # Format SSID display
     if ssid and ssid not in ("<unknown ssid>", "0x", "null", "<Unknown>"):
         ssid_display = f"{CLR_GREEN}  {ssid}{CLR_RESET}"
     else:
-        # Jika Android 10+ menyembunyikan SSID, tampilkan status koneksi cerdas
         if net["isp"]:
-            ssid_display = f"{CLR_GREEN}  Wi-Fi Aktif{CLR_RESET} {CLR_GRAY}({net['isp']}){CLR_RESET}"
+            ssid_display = f"{CLR_GREEN}  Wi-Fi Terkoneksi{CLR_RESET} {CLR_GRAY}({net['isp']}){CLR_RESET}"
         else:
             ssid_display = f"{CLR_GREEN}  Wi-Fi Terkoneksi{CLR_RESET}"
 
@@ -265,7 +243,6 @@ def cmd_wifi(args):
     print()
 
 def cmd_share(args):
-    """Buka Android Share Sheet untuk file atau teks ke WhatsApp, Telegram, dll"""
     target = args.target
     if not target:
         print(f"{CLR_YELLOW}Gunakan: hp share <path_file atau teks>{CLR_RESET}")
@@ -278,11 +255,10 @@ def cmd_share(args):
     else:
         cmd = ["termux-share", "-a", "send", target]
         print(f"{CLR_GREEN}📤 Berbagi teks ke Android...{CLR_RESET}")
-    
+
     run_termux(cmd)
 
 def cmd_vol(args):
-    """Atur volume stream musik/ringtone/call (0-15)"""
     stream = args.stream or "music"
     level = args.level
     if level is None:
@@ -311,11 +287,9 @@ def cmd_vol(args):
     print(f" {CLR_GREEN}✔ Volume {stream} disetel ke: {level}{CLR_RESET}")
 
 def cmd_remind(args):
-    """Pasang pengingat timer notifikasi / alarm cepat"""
     msg = args.message
     time_str = args.time
-    
-    # Parse time (misal: 30s, 5m, 1h, 10)
+
     seconds = 0
     if time_str.endswith("s"):
         seconds = int(time_str[:-1])
@@ -324,7 +298,7 @@ def cmd_remind(args):
     elif time_str.endswith("h"):
         seconds = int(time_str[:-1]) * 3600
     elif time_str.isdigit():
-        seconds = int(time_str) * 60 # default menit
+        seconds = int(time_str) * 60
     else:
         print(f"{CLR_RED}✖ Format waktu tidak dikenal. Contoh: 30s, 5m, 1h{CLR_RESET}")
         return
@@ -349,20 +323,16 @@ def cmd_remind(args):
         if check_cmd("termux-tts-speak"):
             run_termux(["termux-tts-speak", f"Waktunya: {msg}"])
 
-    # Jalankan background proses independen
     t = threading.Thread(target=_wait_and_notify, daemon=True)
     t.start()
-    # Biarkan thread tetap jalan jika script selesai
     if not args.sync:
-        # Spawn daemon subprocess
         py_code = f"import time, subprocess; time.sleep({seconds}); subprocess.run(['termux-notification', '--id', 'hp_reminder', '-t', '⏰ PENGINGAT HP!', '-c', {repr(msg)}, '--vibrate', '500,500,500', '--sound', '--priority', 'high'])"
         subprocess.Popen([sys.executable, "-c", py_code], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
 
 def cmd_photo(args):
-    """Ambil foto dari kamera belakang/depan langsung ke file"""
-    cid = args.camera or "0" # 0: belakang, 1: depan
+    cid = args.camera or "0"
     target = args.output or os.path.expanduser(f"~/photo_{int(time.time())}.jpg")
-    
+
     print(f" {CLR_CYAN}📸 Mengambil foto dari kamera {cid}...{CLR_RESET}")
     cmd = ["termux-camera-photo", "-c", str(cid), target]
     run_termux(cmd, timeout=10)
@@ -373,7 +343,6 @@ def cmd_photo(args):
         print(f" {CLR_RED}✖ Gagal mengambil foto atau izin kamera belum aktif.{CLR_RESET}")
 
 def cmd_dashboard(args):
-    """Dashboard Interaktif Status HP"""
     os.system("clear")
     cmd_battery(args)
     cmd_wifi(args)
@@ -385,10 +354,6 @@ def cmd_dashboard(args):
     print(f"  {CLR_CYAN}hp guard <target>{CLR_RESET}  -> Alarm proteksi baterai (e.g. 80%)")
     print(f"  {CLR_CYAN}hp share <file>{CLR_RESET}   -> Kirim file ke WA/Telegram")
     print()
-
-# ==============================================================================
-# MAIN ROUTER
-# ==============================================================================
 
 def main():
     parser = argparse.ArgumentParser(
@@ -409,51 +374,41 @@ Contoh Penggunaan:
   hp photo               Jepret kamera belakang langsung simpan ke file
         """
     )
-    
+
     subparsers = parser.add_subparsers(dest="command")
 
-    # battery
     p_bat = subparsers.add_parser("battery", aliases=["bat", "b"], help="Cek persentase & kesehatan baterai")
-    
-    # guard
+
     p_grd = subparsers.add_parser("guard", help="Alarm pengingat baterai penuh/kritis")
     p_grd.add_argument("target", type=int, nargs="?", default=85, help="Target persentase baterai (default: 85)")
     p_grd.add_argument("--sound", "-s", action="store_true", default=True, help="Bunyikan suara TTS")
 
-    # torch
     p_trc = subparsers.add_parser("torch", aliases=["senter", "t"], help="Nyalakan/matikan senter HP")
     p_trc.add_argument("action", nargs="?", choices=["on", "off", "toggle"], default="toggle", help="Aksi senter")
 
-    # say / tts
     p_say = subparsers.add_parser("say", aliases=["speak", "tts"], help="Suara Google berbicara (TTS)")
     p_say.add_argument("text", nargs="+", help="Teks yang ingin diucapkan")
     p_say.add_argument("--lang", "-l", default="id-ID", help="Bahasa (default: id-ID)")
     p_say.add_argument("--pitch", "-p", type=float, default=1.0, help="Pitch suara")
     p_say.add_argument("--rate", "-r", type=float, default=1.0, help="Kecepatan bicara")
 
-    # vibrate
     p_vib = subparsers.add_parser("vibrate", aliases=["vib", "v"], help="Getarkan HP")
     p_vib.add_argument("duration", type=int, nargs="?", default=300, help="Durasi getar dalam milidetik (default: 300ms)")
 
-    # wifi
     p_wif = subparsers.add_parser("wifi", aliases=["w", "ip"], help="Status Wi-Fi & IP LAN")
 
-    # share
     p_shr = subparsers.add_parser("share", aliases=["send"], help="Kirim file/teks via Android Share Sheet")
     p_shr.add_argument("target", help="Path file atau teks yang mau dibagikan")
 
-    # vol
     p_vol = subparsers.add_parser("volume", aliases=["vol"], help="Lihat atau ubah volume suara")
     p_vol.add_argument("level", type=int, nargs="?", default=None, help="Level volume (0-15)")
     p_vol.add_argument("--stream", "-s", default="music", choices=["music", "ring", "notification", "system", "call"], help="Target stream audio")
 
-    # remind
     p_rmd = subparsers.add_parser("remind", aliases=["alarm", "timer"], help="Pasang timer alarm / pengingat notifikasi")
     p_rmd.add_argument("message", help="Pesan pengingat")
     p_rmd.add_argument("time", help="Waktu hitung mundur (contoh: 30s, 5m, 1h)")
     p_rmd.add_argument("--sync", action="store_true", help="Jalankan di foreground")
 
-    # photo
     p_pht = subparsers.add_parser("photo", aliases=["cam"], help="Ambil foto kamera")
     p_pht.add_argument("--camera", "-c", default="0", choices=["0", "1"], help="0: Kamera Belakang, 1: Kamera Depan")
     p_pht.add_argument("--output", "-o", default=None, help="Lokasi penyimpanan file foto")
