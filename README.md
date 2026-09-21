@@ -22,6 +22,16 @@ Alat serbaguna untuk mengontrol hardware dan fitur smartphone Android kamu langs
 
 ---
 
+> [!NOTE]
+> **Catatan mengenai Nama Wi-Fi (SSID):**
+> * Di **Android 8.0 & 9.0 ke bawah**, nama SSID dapat langsung terbaca normal.
+> * Di **Android 10 s/d 13**, nama SSID baru terbaca jika izin *Lokasi (Location)* dan GPS utama HP dalam keadaan aktif (kebijakan privasi Google).
+> * Di **Android 14+ / 16 (HyperOS / MIUI)**, nama SSID mentah dikunci total oleh sistem keamanan OS sehingga otomatis ditampilkan sebagai status koneksi aman (`Wi-Fi Terkoneksi`) beserta IP LAN lokal yang valid.
+
+---
+
+---
+
 ## ⚡ Instalasi Global
 
 Tool ini otomatis tersedia di path sistem:

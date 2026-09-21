@@ -261,6 +261,9 @@ def cmd_wifi(args):
         print(f"  {CLR_GRAY}Kecepatan Link  {CLR_RESET}: {CLR_YELLOW}󰛳  {speed} Mbps{CLR_RESET}")
     if rssi != 0:
         print(f"  {CLR_GRAY}Kekuatan Sinyal {CLR_RESET}: {CLR_PURPLE}󰢾  {rssi} dBm ({freq} MHz){CLR_RESET}")
+    if not (ssid and ssid not in ("<unknown ssid>", "0x", "null", "<Unknown>")):
+        print(f"  {CLR_DIM}ℹ Nama SSID terbaca di Android <10 atau Android 10-13 (GPS aktif).{CLR_RESET}")
+        print(f"  {CLR_DIM}  Di Android 14+ / 16, nama SSID dikunci sistem demi privasi.{CLR_RESET}")
     print(f" {CLR_DIM}──────────────────────────────────────────{CLR_RESET}")
     print()
 
